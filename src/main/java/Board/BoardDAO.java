@@ -8,53 +8,42 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import javax.sql.DataSource;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+
 import util.ConnectionFactory;
 
+@Service
 public class BoardDAO {
 
-	public void writeBoard(BoardVO vo) {
+	 @Autowired
+	 private DataSource dataSource;
+	
+	 public void writeBoard(BoardVO vo) {
 	    StringBuilder sql = new StringBuilder();
 	    sql.append("INSERT INTO board(board_No, USER_ID, title, contents, viewCnt, board_Time) ");
 	    sql.append("VALUES(board_seq.nextval, ?, ?, ?, 0, SYSDATE)");
-
-	    try (Connection conn = new ConnectionFactory().getConnection();
-	         PreparedStatement pstmt = conn.prepareStatement(sql.toString())) {
-	        pstmt.setString(1, vo.getUserId());
-	        pstmt.setString(2, vo.getTitle());
-	        pstmt.setString(3, vo.getContents());
-
-	        pstmt.executeUpdate();
-	    } catch (Exception e) {
-	        e.printStackTrace();
-	    }
+	     
+	    JdbcTemplate template = new JdbcTemplate();
+        template.setDataSource(dataSource);
+        
+	    template.update(sql.toString(), vo.getUserId(), vo.getTitle(), vo.getContents());
+	    
 	}
 
 	public List<BoardVO> getBoardList() {
-		List<BoardVO> boardList = new ArrayList<>();
 		
 		StringBuilder sql = new StringBuilder();
 		sql.append("SELECT BOARD_NO, USER_ID, TITLE, CONTENTS, BOARD_TIME, VIEWCNT FROM board ORDER BY BOARD_TIME DESC");
 		
-		try (Connection conn = new ConnectionFactory().getConnection();
-			 PreparedStatement pstmt = conn.prepareStatement(sql.toString());
-			 ResultSet rs = pstmt.executeQuery()) {
-			
-			while (rs.next()) {
-			    int boardNo = rs.getInt("board_No");
-			    String userId = rs.getString("user_Id");
-			    String title = rs.getString("title");
-			    String contents = rs.getString("contents");
-			    java.sql.Date boardTime = rs.getDate("board_Time");
-			    int viewCnt = rs.getInt("viewCnt");
-
-			    BoardVO board = new BoardVO(boardNo, userId, title, contents, boardTime, viewCnt);
-			    boardList.add(board);
-			}
-			
-			
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+		 // spring JDBC
+        JdbcTemplate template = new JdbcTemplate();
+        template.setDataSource(dataSource);
+        List<BoardVO> boardList = template.query(sql.toString(), new BeanPropertyRowMapper<>(BoardVO.class));
 		
 		return boardList;
 	}
@@ -94,7 +83,7 @@ public class BoardDAO {
 
         return board;
     }
-
+	
 	  public void updateBoard(BoardVO vo) {
 	        StringBuilder sql = new StringBuilder();
 	        sql.append("UPDATE board SET title = ?, contents = ? WHERE  BOARD_NO = ?");
